@@ -2,7 +2,7 @@ import ivi
 import time
 import sys
 
-def init_sr830(sens,input_config):
+def init_sr830(sens,input_config,time_const):
     # initialize lock-in amplifier
     SR830 = ivi.stanford.stanfordSR830()
     SR830.Reset()
@@ -13,7 +13,7 @@ def init_sr830(sens,input_config):
     SR830.SetInputConfig(input_config)  # i selects A (i=0), A-B (i=1), I (1 MΩ) (i=2) or I (100 MΩ) (i=3)
     SR830.SetGNDConfig(0)  # Float (gndconf=0) or Ground (gndconf=1)
     SR830.SetInputCoupling(0)  # i selects AC (i=0) or DC (i=1)[1]
-    SR830.SetTimeConst(8)  # 8..100ms; 10...1s; 11...3s
+    SR830.SetTimeConst(time_const)  # 8..100ms; 10...1s; 11...3s
     SR830.SetReserve(1)  # Normal
     SR830.SetTriggerSlope(0)  # 0..sine
     SR830.SetSens(sens)  # 22..50mV
