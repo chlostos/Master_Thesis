@@ -1,15 +1,18 @@
 import pandas as pd
 from datetime import datetime
-from init_messg import init_sr830
-import time
+from help_functions.init_messg import init_sr830
+from setup.initialize import logger
+from setup.initialize import config
+import numpy as np
 
-def meas(sens, i,powersupply, time_const, t_sleep, t_avg, u_max, n_meas, n_avg, symetric, measurement_box, box_supply, sensor, mode, frequency, d_minus, d_plus):
-    import time
-    import numpy as np
+def meas(sens, i,powersupply, time_const, t_sleep, t_avg, u_max, n_meas, n_avg, symetric, measurement_box, box_supply,
+         sensor, mode, frequency, d_minus, d_plus):
+    from setup import log_func
     import matplotlib.pylab as plt
+    import time
 
     SR830 = init_sr830(sens,i,time_const)
-    print('time const were set')
+    logger.info('time const were set')
     time.sleep(t_sleep)
     r_vec = np.array([])
     u_vec = np.array([])
@@ -17,27 +20,25 @@ def meas(sens, i,powersupply, time_const, t_sleep, t_avg, u_max, n_meas, n_avg, 
     time_elapsed = []
     u_step_size = u_max / n_meas
 
-    
-    
-    if symetric:
+    if 'y' in symetric.low():
         u_now = u_max
         powersupply.outputs[1].enabled=False
         powersupply.outputs[0].voltage_level = u_max
         powersupply.outputs[0].enabled=True
-        print('start symmetric measurement')
+        logger.info('start symmetric measurement')
         
         while u_now > 0:
             powersupply.outputs[0].voltage_level = u_now
-            print(f'measuring at -{u_now}V...')
+            logger.info(f'measuring at -{u_now}V...')
             time.sleep(t_sleep)
             r_now = SR830.getR()
             phi_now = SR830.getPhi()
-            print(f'{r_now*1E6}uV {phi_now}°')
+            logger.info(f'{r_now*1E6}uV {phi_now}°')
             # average resistance as the mean of a normal distribution
             if n_avg > 0:
                 r_smpl = []
                 phi_smpl = []
-                print('aquiering mean')
+                logger.info('aquiering mean')
                 start_time1 = time.time()
                 for i_avg in range(n_avg):
                     r_smpl.append(SR830.getR())
@@ -60,7 +61,7 @@ def meas(sens, i,powersupply, time_const, t_sleep, t_avg, u_max, n_meas, n_avg, 
             r_vec=np.append(r_vec, r_avg)
             u_vec=np.append(u_vec, ((-1)*u_now))
             phi_vec=np.append(phi_vec, phi_avg)
-            print(u_now,r_now) 
+            logger.info(u_now,r_now)
 
             u_now -= u_step_size    
 
@@ -69,16 +70,16 @@ def meas(sens, i,powersupply, time_const, t_sleep, t_avg, u_max, n_meas, n_avg, 
         powersupply.outputs[0].enabled=False
         powersupply.outputs[1].voltage_level = u_now
         powersupply.outputs[1].enabled=True
-        print(f'measuring at {u_now}V')
+        logger.info(f'measuring at {u_now}V')
         time.sleep(t_sleep)
         r_now = SR830.getR()
         phi_now = SR830.getPhi()
-        print(f'{r_now*1E6}uV {phi_now}°')
+        logger.info(f'{r_now*1E6}uV {phi_now}°')
         # average resistance as the mean of a normal distribution
         if n_avg > 0:
             r_smpl = []
             phi_smpl = []
-            print('aquiering mean')
+            logger.info('aquiering mean')
             start_time2 = time.time()
             for i_avg in range(n_avg):
                 r_smpl.append(SR830.getR())
@@ -100,7 +101,7 @@ def meas(sens, i,powersupply, time_const, t_sleep, t_avg, u_max, n_meas, n_avg, 
         r_vec=np.append(r_vec, r_avg)
         u_vec=np.append(u_vec, u_now)
         phi_vec=np.append(phi_vec, phi_avg)
-        print(u_now,r_now) 
+        logger.info(u_now,r_now)
 
         u_now += u_step_size
     elapsed_time_mean = np.mean(time_elapsed)
@@ -114,7 +115,7 @@ def meas(sens, i,powersupply, time_const, t_sleep, t_avg, u_max, n_meas, n_avg, 
     current_date = current_datetime.strftime('%d/%m/%Y')
     date = current_datetime.strftime('%d%m%Y')
     current_time = current_datetime.strftime('%H:%M')
-    time = current_datetime.strftime('%Hh%Mmin')
+    daytime = current_datetime.strftime('%Hh%Mmin')
     columns = ["date","time","measurement box","box supply","sensor","mode","frequency","D-","D+","U","R","Phi"]
     df = pd.DataFrame(columns=columns)
     df["U"] = u_vec
@@ -129,15 +130,16 @@ def meas(sens, i,powersupply, time_const, t_sleep, t_avg, u_max, n_meas, n_avg, 
     df["frequency"] = frequency
     df["D-"] = d_minus
     df["D+"] = d_plus
-    file_name = f'{sensor}_{date}_{time}.xlsx'
+    file_name = f'{sensor}_{date}_{daytime}.xlsx'
     df.to_excel(file_name, index=False)
-    print(f'measurement successfully saved as {file_name}')
-    df0 = pd.read_excel('all_measurements.xlsx')
+    logger.info(f'measurement successfully saved as {file_name}')
+    all_measurements = config.get("DIRECTORIES","all_measurements")
+    df0 = pd.read_excel(all_measurements)
     df0 = pd.concat([df0,df])
-    df0.to_excel('all_measurements.xlsx', index=False)
-    print(f'measurement data base has been updated')
-    print(f'real time constant mean: {elapsed_time_mean}ms\n'
-          f'real time constant max:  {elapsed_time_max}ms\n'
-          f'real time constant min:  {elapsed_time_min}ms')
+    df0.to_excel(all_measurements, index=False)
+    logger.info(f'measurement data base has been updated')
+    logger.info(f'real time constant mean: {elapsed_time_mean}ms\n'
+                f'real time constant max:  {elapsed_time_max}ms\n'
+                f'real time constant min:  {elapsed_time_min}ms')
     
-    return df,date,time
+    return df,date,daytime

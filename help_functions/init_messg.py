@@ -22,10 +22,10 @@ def init_sr830(sens,input_config,time_const):
     print('lock-in ready')
     return SR830
 
-def init_fgen(reset=True):
+def init_fgen(reset):
     # initialize function generator
     fgen = ivi.keysight.keysight33510B()
-    if reset:
+    if 'y' in reset.lower():
         fgen.utility.reset()
         fgen._identity_description
         fgen._output_name
